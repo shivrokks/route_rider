@@ -9,6 +9,7 @@ import BusList from '@/components/bus/BusList';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface UserProfile {
   fullName: string;
@@ -23,6 +24,7 @@ const MapView = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
     useEffect(() => {
     const fetchUserProfile = async () => {
@@ -107,7 +109,7 @@ const MapView = () => {
   };
 
   return (
-    <div className="space-y-4 p-4">
+    <div className={`space-y-4 ${isMobile ? 'p-2' : 'p-4'}`}>
       {isSignedIn && (
         <Card className="p-4 shadow-md">
           <div className="flex items-center justify-between">
@@ -149,8 +151,10 @@ const MapView = () => {
         </Tabs>
       </div>
 
-      {view === 'map' && <BusMap />}
-      {view === 'list' && <BusList />}
+      <div className={`${isMobile ? '-mx-2 rounded-none' : 'rounded-lg'} overflow-hidden`}>
+        {view === 'map' && <BusMap fullWidth={isMobile} />}
+        {view === 'list' && <BusList />}
+      </div>
     </div>
   );
 };
