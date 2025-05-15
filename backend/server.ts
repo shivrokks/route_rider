@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import stopRoutes from './route/stoproute';
 import userRoutes from './route/userroute';
+import messageRoutes from './route/messageroute';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/user', stopRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

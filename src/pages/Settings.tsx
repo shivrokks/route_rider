@@ -163,31 +163,7 @@ const Settings = () => {
     }
   };
 
-    const renderProfileContent = () => {
-    if (isLoading) {
-      return (
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-[150px]" />
-          <Skeleton className="h-4 w-[100px]" />
-          <Skeleton className="h-4 w-[120px]" />
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-1">
-        <h3 className="font-medium text-foreground">
-          {profile?.fullName || 'Guest User'}
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          {profile?.phoneNumber ? formatPhoneNumber(profile.phoneNumber) : 'No phone number'}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {profile?.email || 'No email'}
-        </p>
-      </div>
-    );
-  };
+  
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");

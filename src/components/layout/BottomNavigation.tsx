@@ -19,6 +19,11 @@ const BottomNavigation = () => {
       icon: MapPin,
     },
     {
+      name: 'Messaging',
+      path: '/messages',
+      icon: MessageSquare,
+    },
+    {
       name: 'Settings',
       path: '/settings',
       icon: Settings,

@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Bell, Search, LogIn, UserCircle } from 'lucide-react';
+import { Bell, Search, LogIn } from 'lucide-react';
 import { useUser, UserButton } from '@clerk/clerk-react';
 
 interface HeaderProps {

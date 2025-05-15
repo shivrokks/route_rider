@@ -90,7 +90,9 @@ export const checkBusesNearUserStops = async (userId: string): Promise<void> => 
   // or triggered by real-time location updates
   
   const busLocations = await getBusLocations();
-  await checkBusProximityForUser(userId, busLocations);
+  for (const bus of busLocations) {
+    await checkBusProximityForUser(userId, bus);
+  }
 };
 
 // For a real backend implementation with Firebase:
@@ -120,4 +122,5 @@ export const getBusesByRoute = async (route: string): Promise<Bus[]> => {
   return busSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bus));
 };
 */
+
 
