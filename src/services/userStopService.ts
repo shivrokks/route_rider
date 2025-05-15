@@ -1,4 +1,3 @@
-
 import { UserStop } from './models/UserStop';
 
 // Note: In a real implementation, these functions would interact with MongoDB
@@ -12,6 +11,12 @@ export const getUserStops = async (userId: string): Promise<UserStop[]> => {
   // In a real backend, this would query MongoDB
   // return await UserStopModel.find({ userId });
   return mockUserStops.filter(stop => stop.userId === userId);
+};
+
+export const getUserStopByUserId = async (userId: string): Promise<UserStop | null> => {
+  // In a real backend, this would query MongoDB for a single user stop
+  const userStops = mockUserStops.filter(stop => stop.userId === userId);
+  return userStops.length > 0 ? userStops[0] : null;
 };
 
 export const addUserStop = async (userStop: UserStop): Promise<UserStop> => {

@@ -12,6 +12,11 @@ export interface UserStop {
   phoneNumber?: string;
 }
 
+export interface BusStop {
+  name: string;
+  position: string | [number, number]; // "lat,lng" or [latitude, longitude]
+}
+
 export interface Bus {
   id: string;
   number: string;
@@ -22,6 +27,6 @@ export interface Bus {
   capacity: string;
   nextStop: string;
   eta: string;
-  stops: string[];
+  routeStops: BusStop[];
   currentStopIndex: number;
 }
