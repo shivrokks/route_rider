@@ -26,7 +26,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/login" element={
+            <Route path="/login/factor-one" element={
               <UnauthenticatedRoute>
                 <Login />
               </UnauthenticatedRoute>
