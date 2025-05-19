@@ -107,20 +107,57 @@ export const updateProfile = async (req: Request, res: Response) => {
 };
 
 export const getUserProfile = async (req: Request, res: Response) => {
+  console.log('getUserProfile called with query:', req.query);
+  
   try {
     const { email } = req.query;
 
     if (!email) {
+      console.error('No email provided in request');
       throw new APIError('Email is required');
     }
 
-    const user = await User.findOne({ email });
+    // Trim and validate email
+    const userEmail = (email as string).trim().toLowerCase();
+    console.log('Processing email:', userEmail);
+    
+    if (!userEmail.includes('@') || !userEmail.includes('.')) {
+      console.error('Invalid email format:', userEmail);
+      throw new APIError('Please provide a valid email address');
+    }
+
+    // Try to find user by email
+    console.log('Looking up user in database...');
+    let user;
+    
+    try {
+      user = await User.findOne({ email: userEmail });
+      console.log('User lookup result:', user ? 'found' : 'not found');
+    } catch (dbError) {
+      console.error('Database error during user lookup:', dbError);
+      throw new Error('Failed to query user database');
+    }
+    
+    // If user doesn't exist, create a new one with default values
     if (!user) {
-      throw new APIError('User not found');
+      console.log('Creating new user with email:', userEmail);
+      try {
+        user = await User.create({
+          email: userEmail,
+          fullName: userEmail.split('@')[0], // Use email prefix as default name
+          phoneNumber: '' // Empty phone number by default
+        });
+        console.log('New user created:', user);
+      } catch (createError) {
+        console.error('Error creating new user:', createError);
+        throw new Error('Failed to create new user');
+      }
     }
 
     // Get user data from their specific collection
-    const sanitizedPhoneNumber = user.phoneNumber.replace(/[^0-9]/g, '');
+    // Use a default collection if phone number is not available
+    const sanitizedPhoneNumber = user.phoneNumber ? 
+      user.phoneNumber.replace(/[^0-9]/g, '') : 'default';
     const collectionName = `userData_${sanitizedPhoneNumber}`;
     
     try {

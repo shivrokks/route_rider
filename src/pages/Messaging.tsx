@@ -33,6 +33,15 @@ const Messaging = () => {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { isSignedIn, user } = useUser();
+  // Type assertion for Clerk user
+  const clerkUser = user as {
+    fullName?: string;
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+    emailAddresses: { emailAddress: string }[];
+    primaryEmailAddress?: { emailAddress: string };
+  };
   const { toast } = useToast();
   const fetchMessages = async () => {
     try {
@@ -58,27 +67,46 @@ const Messaging = () => {
     const interval = setInterval(fetchMessages, 5000);
     return () => clearInterval(interval);
   }, []);  const sendMessage = async () => {
-    if (!isSignedIn || !user || !newMessage.trim()) return;
+    if (!isSignedIn || !user || !newMessage.trim()) {
+      console.error('Cannot send message:', { isSignedIn, user: !!user, hasMessage: !!newMessage.trim() });
+      return;
+    }
 
     setIsLoading(true);
     try {
-      // Get the full name in order of preference
-      const senderName = user.fullName || // First try fullName
-        (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : // Then try firstName + lastName
-         user.firstName || user.lastName || // Then try either firstName or lastName
-         'Unknown User'); // Fallback
+      // Debug log the entire user object to see what's available
+      console.log('User object:', JSON.stringify(user, null, 2));
+      
+      // Get the sender name with fallbacks
+      // Get the sender name with fallbacks
+      const senderName = clerkUser.fullName || 
+        (clerkUser.firstName && clerkUser.lastName ? `${clerkUser.firstName} ${clerkUser.lastName}` : 
+         clerkUser.firstName || clerkUser.lastName || 
+         clerkUser.username || // Use username if available
+         clerkUser.primaryEmailAddress?.emailAddress?.split('@')[0] || // Use email prefix
+         'Bus User');
 
+      // Debug email addresses
+      console.log('Email addresses:', clerkUser.emailAddresses);
+      
       // Get the primary email address
-      const senderEmail = user.emailAddresses[0]?.emailAddress;
+      let senderEmail = '';
+      if (clerkUser.emailAddresses && clerkUser.emailAddresses.length > 0) {
+        senderEmail = clerkUser.emailAddresses[0].emailAddress;
+      } else if (clerkUser.primaryEmailAddress?.emailAddress) {
+        senderEmail = clerkUser.primaryEmailAddress.emailAddress;
+      }
       
       if (!senderEmail) {
+        console.error('No email address found in user object:', user);
         throw new Error('No email address available');
       }
 
       console.log('Sending message with sender:', { 
         name: senderName, 
-        email: senderEmail
-      }); // Debug log
+        email: senderEmail,
+        timestamp: new Date().toISOString()
+      });
 
       const response = await fetch('http://localhost:5000/api/messages', {
         method: 'POST',
@@ -89,7 +117,7 @@ const Messaging = () => {
           content: newMessage,
           sender: {
             name: senderName,
-            email: user.emailAddresses[0]?.emailAddress
+            email: senderEmail
           }
         }),
       });

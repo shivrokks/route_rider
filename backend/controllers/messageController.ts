@@ -4,22 +4,38 @@ import { APIError } from '../types/errors';
 
 export const sendMessage = async (req: Request, res: Response) => {
   try {
-    const { content, sender } = req.body;
+    console.log('Received message request:', JSON.stringify({
+      body: req.body,
+      headers: req.headers,
+      timestamp: new Date().toISOString()
+    }, null, 2));
 
-    if (!content || !sender.name || !sender.email) {
-      throw new APIError('Message content and sender information are required');
+    const { content } = req.body;
+    let { sender } = req.body;
+
+    if (!content) {
+      throw new APIError('Message content is required');
+    }
+
+    if (!sender || (!sender.name && !sender.email)) {
+      console.warn('Incomplete sender information:', sender);
+      // Instead of throwing an error, use defaults
+      sender = sender || {};
+      sender.name = sender.name || 'Anonymous User';
+      sender.email = sender.email || 'no-email@example.com';
     }
 
     // Create new message with explicit sender information
     const message = new Message({
       content,
       sender: {
-        name: sender.name || 'Unknown User',
-        email: sender.email
+        name: String(sender.name || 'Anonymous User').substring(0, 100), // Ensure string and limit length
+        email: String(sender.email || 'no-email@example.com').toLowerCase().substring(0, 254)
       },
-      timestamp: new Date() // Ensure timestamp is set
+      timestamp: new Date()
     });
 
+    console.log('Saving message:', message);
     await message.save();
 
     res.status(201).json({

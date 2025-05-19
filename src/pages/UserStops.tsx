@@ -292,15 +292,15 @@ const UserStops = () => {
                 <div className="flex items-center space-x-2">
                   <Label>Push Notifications</Label>
                   <Switch
-                    checked={stop.enablePushNotifications}
-                    onCheckedChange={(enabled) => handleToggleNotification(stop.name, 'push', enabled)}
+                    checked={stop.notifications.enablePushNotifications}
+                    onCheckedChange={(enabled) => handleToggleNotification(stop, 'push', enabled)}
                   />
                 </div>
                 <div className="flex items-center space-x-2">
                   <Label>SMS Notifications</Label>
                   <Switch
-                    checked={stop.enableSmsNotifications}
-                    onCheckedChange={(enabled) => handleToggleNotification(stop.name, 'sms', enabled)}
+                    checked={stop.notifications.enableSmsNotifications}
+                    onCheckedChange={(enabled) => handleToggleNotification(stop, 'sms', enabled)}
                   />
                 </div>
               </div>
