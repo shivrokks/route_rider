@@ -1,34 +1,26 @@
 import mongoose from 'mongoose';
 
-interface IUser extends mongoose.Document {
-  fullName: string;
-  email: string;
-  phoneNumber: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const userSchema = new mongoose.Schema<IUser>({
+const userSchema = new mongoose.Schema({
   fullName: {
     type: String,
-    default: function(this: IUser) {
-      // Default to email prefix if available
-      return this.email ? this.email.split('@')[0] : 'User';
-    }
+    required: true
   },
   email: {
     type: String,
     required: true,
     unique: true,
-    lowercase: true,
-    trim: true
+    lowercase: true
   },
   phoneNumber: {
     type: String,
-    default: ''
+    required: true
+  },
+  isDriver: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
 });
 
-export const User = mongoose.model<IUser>('User', userSchema);
+export const User = mongoose.model('User', userSchema);

@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,100 +13,58 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUser } from '@clerk/clerk-react';
+import { useUser as useClerkUser } from '@clerk/clerk-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-
-interface Message {
-  _id: string;
-  content: string;
-  sender: {
-    name: string;
-    email: string;
-  };
-  timestamp: string;
-}
+import { useMessages } from '@/hooks/useMessages';
 
 const Messaging = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { isSignedIn, user } = useUser();
-  // Type assertion for Clerk user
-  const clerkUser = user as {
-    fullName?: string;
-    firstName?: string;
-    lastName?: string;
-    username?: string;
-    emailAddresses: { emailAddress: string }[];
-    primaryEmailAddress?: { emailAddress: string };
-  };
+  const { messages, markMessageRead, markAllRead } = useMessages();
+  const { isSignedIn, user: clerkUser } = useClerkUser();
   const { toast } = useToast();
-  const fetchMessages = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/messages');
-      const data = await response.json();
-      console.log('Fetched messages:', data); // Debug log
-      if (data.success) {
-        setMessages(data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      toast({
-        title: "Error",
-        description: "Could not load messages",
-        variant: "destructive",
-      });
-    }
-  };
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
+  // Mark all messages as read when component mounts
   useEffect(() => {
-    fetchMessages();
-    // Set up polling to fetch new messages every 5 seconds
-    const interval = setInterval(fetchMessages, 5000);
-    return () => clearInterval(interval);
-  }, []);  const sendMessage = async () => {
-    if (!isSignedIn || !user || !newMessage.trim()) {
-      console.error('Cannot send message:', { isSignedIn, user: !!user, hasMessage: !!newMessage.trim() });
-      return;
-    }
+    markAllRead();
+  }, [markAllRead]);
+
+  // Setup intersection observer to detect when messages are visible
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const messageId = entry.target.getAttribute('data-message-id');
+            if (messageId) {
+              markMessageRead(messageId);
+            }
+          }
+        });
+      }
+    );
+
+    // Observe all message elements
+    document.querySelectorAll('[data-message-id]').forEach(element => {
+      if (observerRef.current) {
+        observerRef.current.observe(element);
+      }
+    });
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [messages, markMessageRead]);
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
 
     setIsLoading(true);
     try {
-      // Debug log the entire user object to see what's available
-      console.log('User object:', JSON.stringify(user, null, 2));
-      
-      // Get the sender name with fallbacks
-      // Get the sender name with fallbacks
-      const senderName = clerkUser.fullName || 
-        (clerkUser.firstName && clerkUser.lastName ? `${clerkUser.firstName} ${clerkUser.lastName}` : 
-         clerkUser.firstName || clerkUser.lastName || 
-         clerkUser.username || // Use username if available
-         clerkUser.primaryEmailAddress?.emailAddress?.split('@')[0] || // Use email prefix
-         'Bus User');
-
-      // Debug email addresses
-      console.log('Email addresses:', clerkUser.emailAddresses);
-      
-      // Get the primary email address
-      let senderEmail = '';
-      if (clerkUser.emailAddresses && clerkUser.emailAddresses.length > 0) {
-        senderEmail = clerkUser.emailAddresses[0].emailAddress;
-      } else if (clerkUser.primaryEmailAddress?.emailAddress) {
-        senderEmail = clerkUser.primaryEmailAddress.emailAddress;
-      }
-      
-      if (!senderEmail) {
-        console.error('No email address found in user object:', user);
-        throw new Error('No email address available');
-      }
-
-      console.log('Sending message with sender:', { 
-        name: senderName, 
-        email: senderEmail,
-        timestamp: new Date().toISOString()
-      });
-
       const response = await fetch('http://localhost:5000/api/messages', {
         method: 'POST',
         headers: {
@@ -116,26 +73,22 @@ const Messaging = () => {
         body: JSON.stringify({
           content: newMessage,
           sender: {
-            name: senderName,
-            email: senderEmail
-          }
+            name: clerkUser?.fullName || clerkUser?.username || 'Anonymous',
+            email: clerkUser?.primaryEmailAddress?.emailAddress || '',
+          },
         }),
       });
 
-      const data = await response.json();
-      if (data.success) {
-        setNewMessage('');
-        fetchMessages(); // Refresh messages
-        toast({
-          title: "Success",
-          description: "Message sent successfully",
-        });
+      if (!response.ok) {
+        throw new Error('Failed to send message');
       }
+
+      setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
         title: "Error",
-        description: "Could not send message",
+        description: "Failed to send message",
         variant: "destructive",
       });
     } finally {
@@ -144,62 +97,68 @@ const Messaging = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <Card className="w-full">
+    <div className="container mx-auto p-4">
+      <Card className="w-full max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle>Messages</CardTitle>
-          <CardDescription>Chat with other users</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Messages
+          </CardTitle>
+          <CardDescription>
+            Chat with drivers and passengers
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[500px] w-full pr-4">            <div className="space-y-4">
-              {messages && messages.length > 0 ? (
-                messages.map((message) => (
-                  <div
-                    key={message._id}
-                    className={cn(
-                      "flex flex-col space-y-1 p-3 rounded-lg max-w-[80%]",
-                      message.sender.email === user?.emailAddresses[0]?.emailAddress
-                        ? "bg-primary/10 ml-auto"
-                        : "bg-muted"
-                    )}
-                  >
-                    <div className="flex items-center gap-2 justify-between">
-                      <span className="font-semibold text-sm">{message.sender?.name || 'Unknown User'}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(message.timestamp), 'MMM d, h:mm a')}
-                      </span>
-                    </div>
-                    <p className="text-sm break-words">{message.content}</p>
+          <ScrollArea className="h-[400px] w-full pr-4">
+            <div className="flex flex-col gap-4">
+              {messages.map((message) => (
+                <div
+                  key={message._id}
+                  data-message-id={message._id}
+                  className={cn(
+                    "flex flex-col gap-1 p-4 rounded-lg",
+                    message.isDriver 
+                      ? "bg-yellow-100 dark:bg-yellow-900" 
+                      : "bg-gray-100 dark:bg-gray-800"
+                  )}
+                >                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">
+                      {message.isDriver ? `(Driver) ${message.sender.name}` : message.sender.name}
+                    </span>
                   </div>
-                ))
-              ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  No messages yet. Start the conversation!
+                  <p className="text-sm">{message.content}</p>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {format(new Date(message.timestamp), 'MMM d, yyyy h:mm a')}
+                  </span>
                 </div>
-              )}
+              ))}
             </div>
           </ScrollArea>
         </CardContent>
-        <CardFooter className="flex space-x-2">
-          <Input
-            placeholder="Type your message..."
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+        <CardFooter>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (newMessage.trim()) {
+                handleSendMessage();
               }
             }}
-            disabled={!isSignedIn || isLoading}
-          />
-          <Button 
-            onClick={sendMessage}
-            disabled={!isSignedIn || isLoading || !newMessage.trim()}
+            className="flex w-full gap-2"
           >
-            <Send className="h-4 w-4 mr-2" />
-            Send
-          </Button>
+            <Input
+              placeholder="Type a message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              disabled={!isSignedIn || isLoading}
+              className="flex-1"
+            />
+            <Button
+              type="submit"
+              disabled={!isSignedIn || !newMessage.trim() || isLoading}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
         </CardFooter>
       </Card>
     </div>

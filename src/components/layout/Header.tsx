@@ -47,15 +47,6 @@ const Header = ({ setIsMenuOpen }: HeaderProps) => {
               
               {isSignedIn ? (
                 <>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={handleNotificationClick}
-                    className="text-bus-primary relative dark:text-white"
-                  >
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-bus-danger rounded-full"></span>
-                  </Button>
                   <UserButton afterSignOutUrl="/login" />
                 </>
               ) : (

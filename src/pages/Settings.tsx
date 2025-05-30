@@ -57,57 +57,43 @@ const Settings = () => {
   // Load user profile data
   useEffect(() => {
     const loadProfile = async () => {
-      if (!user?.email) {
-        console.log('No user email available');
-        return;
-      }
+  if (!user?.email) return;
 
-      setIsLoading(true);
-      try {
-        console.log('Fetching profile for email:', user.email);
-        const url = `http://localhost:5000/api/user/profile?email=${encodeURIComponent(user.email)}`;
-        console.log('Request URL:', url);
-        
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        console.log('Response status:', response.status);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Error response:', errorText);
-          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-        }
+  setIsLoading(true);
+  try {
+    const response = await fetch(`http://localhost:5000/api/user/profile?email=${encodeURIComponent(user.email)}`);
 
-        const data = await response.json();
-        console.log('Profile data received:', data);
-        
-        if (data.success) {
-          setProfileData(data.data);
-          setNotificationSettings(data.data.settings?.notifications || notificationSettings);
-        } else {
-          console.error('API returned success:false with data:', data);
-          toast({
-            title: "Info",
-            description: data.message || "No profile data available",
-            variant: "default",
-          });
-        }
-      } catch (error) {
-        console.error('Error loading profile:', error);
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to load profile settings",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    if (!response.ok) {
+      // Instead of throwing an error, show the message
+      toast({
+        title: "Notice",
+        description: "Save your profile by filling the details below.",
+      });
+      return;
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      setProfileData(data.data);
+      setNotificationSettings(data.data.settings?.notifications || notificationSettings);
+    } else {
+      // Handle the case where the server responds but indicates failure
+      toast({
+        title: "Notice",
+        description: "Save your profile by filling the details below.",
+      });
+    }
+  } catch (error) {
+    console.error('Error loading profile:', error);
+    toast({
+      title: "Notice",
+      description: "Save your profile by filling the details below.",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
     loadProfile();
   }, [user?.email, toast]);
@@ -138,7 +124,7 @@ const Settings = () => {
     }));
   };
 
-    const handleSaveProfile = async () => {
+  const handleSaveProfile = async () => {
     if (!profileData.phoneNumber || !profileData.email) {
       toast({
         title: "Error",
@@ -161,34 +147,38 @@ const Settings = () => {
             notifications: notificationSettings
           }
         })
-      });
+      });      const data = await response.json();
 
-      const data = await response.json();
+      if (!response.ok) {
+        // Handle validation errors
+        if (response.status === 400 && data.errors) {
+          throw new Error(`Validation error: ${data.errors.join(', ')}`);
+        }
+        throw new Error(data.message || 'Failed to save settings');
+      }
 
       if (data.success) {
         toast({
           title: "Settings Saved",
-          description: "Your profile has been updated",
+          description: "Your profile has been updated successfully",
         });
         
         // Force a reload of the profile data across the app
         window.dispatchEvent(new CustomEvent('profileUpdated'));
       } else {
-        throw new Error(data.message);
+        throw new Error(data.message || 'Failed to save settings');
       }
     } catch (error) {
       console.error('Error saving settings:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save settings",
+        description: error instanceof Error ? error.message : "Failed to save settings. Please try again.",
         variant: "destructive"
       });
     } finally {
       setIsSaving(false);
     }
   };
-
-  
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -204,7 +194,72 @@ const Settings = () => {
 
   return (
     <div className="space-y-6 max-w-md mx-auto">
-      
+      <div>
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <p className="text-muted-foreground">
+          Manage your profile and preferences
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile Settings</CardTitle>
+          <CardDescription>
+            Update your personal information
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Full Name</Label>
+            <Input 
+              id="fullName" 
+              value={profileData.fullName}
+              onChange={handleInputChange}
+              placeholder="Enter your full name"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input 
+              id="email" 
+              type="email" 
+              value={profileData.email}
+              onChange={handleInputChange}
+              placeholder="Enter your email"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="phoneNumber">Phone Number</Label>
+            <Input 
+              id="phoneNumber" 
+              type="tel" 
+              value={profileData.phoneNumber}
+              onChange={handleInputChange}
+              placeholder="Enter your phone number"
+              maxLength={10}
+            />
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button 
+            onClick={handleSaveProfile} 
+            disabled={isSaving}
+            className="w-full"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Profile'
+            )}
+          </Button>
+        </CardFooter>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Appearance Settings</CardTitle>
