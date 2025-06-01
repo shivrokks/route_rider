@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { MapPin, Plus, Trash2, Bell } from 'lucide-react';
 import { useUser } from '@/hooks/useUser';
+import { useAuth } from '@clerk/clerk-react';
 
 interface Stop {
   _id: string;
@@ -37,6 +37,7 @@ interface Stop {
 const UserStops = () => {
   const { toast } = useToast();
   const { user } = useUser();
+  const { getToken } = useAuth();
   const [stops, setStops] = useState<Stop[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [newStopName, setNewStopName] = useState('');
@@ -47,13 +48,29 @@ const UserStops = () => {
 
   // Fetch user's stops
   const fetchStops = async () => {
+    if (!user?.phoneNumber) return;
+
     try {
       setIsLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/stops/${user?.phoneNumber}`);
+      const token = await getToken();
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/stops/${user?.phoneNumber}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
 
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch stops');
+      }
+
+      const data = await response.json();
       if (data.success) {
         setStops(data.data);
+      } else {
+        throw new Error(data.message || 'Failed to fetch stops');
       }
     } catch (error) {
       console.error('Error fetching stops:', error);
@@ -84,12 +101,15 @@ const UserStops = () => {
     }
     
     setIsAddingStop(true);
-    
     try {
+
+      const token = await getToken();
+
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/stops`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           phoneNumber: user?.phoneNumber,
@@ -99,7 +119,6 @@ const UserStops = () => {
       });
 
       const data = await response.json();
-      
       if (data.success) {
         toast({
           title: "Stop Added",
@@ -107,9 +126,9 @@ const UserStops = () => {
         });
         setNewStopName('');
         setNewBusRoute('');
-        fetchStops(); // Refresh stops list
+        fetchStops();
       } else {
-        throw new Error(data.message);
+        throw new Error(data.message || 'Failed to add stop');
       }
     } catch (error) {
       console.error('Error adding stop:', error);
@@ -125,24 +144,26 @@ const UserStops = () => {
 
   const handleRemoveStop = async (stopName: string) => {
     try {
+
+      const token = await getToken();
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/stops/${user?.phoneNumber}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ stopName })
       });
 
       const data = await response.json();
-      
       if (data.success) {
         toast({
           title: "Stop Removed",
           description: `${stopName} has been removed from your stops`,
         });
-        fetchStops(); // Refresh stops list
+        fetchStops();
       } else {
-        throw new Error(data.message);
+        throw new Error(data.message || 'Failed to remove stop');
       }
     } catch (error) {
       console.error('Error removing stop:', error);
@@ -165,12 +186,14 @@ const UserStops = () => {
         return;
       }
       
+      const token = await getToken();
       const response = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/api/user/stops/${user?.phoneNumber}/${stop.name}/preferences`,
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
             enablePushNotifications: type === 'push' ? enabled : stop.notifications.enablePushNotifications,
@@ -180,21 +203,20 @@ const UserStops = () => {
       );
 
       const data = await response.json();
-      
       if (data.success) {
         toast({
           title: "Settings Updated",
           description: `${type === 'push' ? 'Push' : 'SMS'} notifications ${enabled ? 'enabled' : 'disabled'} for ${stop.name}`,
         });
-        fetchStops(); // Refresh stops list
+        fetchStops();
       } else {
-        throw new Error(data.message);
+        throw new Error(data.message || 'Failed to update notification settings');
       }
     } catch (error) {
       console.error('Error updating notification settings:', error);
       toast({
         title: "Error",
-        description: "Failed to update notification settings",
+        description: "Failed to update notification settings. Please try again.",
         variant: "destructive",
       });
     }

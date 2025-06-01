@@ -23,7 +23,7 @@ export const useUserProfile = () => {
       setIsLoading(true);
       try {
         const response = await fetch(
-          `${import.meta.env.BACKEND_URL}/api/user/profile?phoneNumber=${user.phoneNumber}`,
+          `http://localhost:5000/api/user/profile?phoneNumber=${user.phoneNumber}`,
           {
             headers: {
               'Content-Type': 'application/json',

@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { useClerk } from '@clerk/clerk-react';
+import { useClerk, useAuth } from '@clerk/clerk-react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser } from '@/hooks/useUser';
 import { useToast } from '@/hooks/use-toast';
 
-const DriverDashboard: React.FC = () => {
-  const { signOut } = useClerk();
+const DriverDashboard: React.FC = () => {  const { signOut } = useClerk();
   const { user } = useUser();
   const { toast } = useToast();
+  const { getToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = () => {
@@ -17,22 +17,30 @@ const DriverDashboard: React.FC = () => {
 
   const sendMessage = async (content: string) => {
     setIsLoading(true);
-    try {      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/messages`, {
+  try {
+    const token = await getToken();
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          content,          sender: {
+          content,
+          sender: {
             name: `(Driver) ${user?.fullName || user?.name || 'Unknown'}`,
             email: user?.email || '',
           },
           isDriver: true
         }),
-      });
+      });      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Failed to send message');
+      }
 
-      if (!response.ok) {
-        throw new Error('Failed to send message');
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to send message');
       }
 
       toast({

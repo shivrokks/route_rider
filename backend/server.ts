@@ -16,7 +16,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/user', stopRoutes);
+app.use('/api', stopRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/messages', messageRoutes);
 

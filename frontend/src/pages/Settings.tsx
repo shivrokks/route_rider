@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@clerk/clerk-react';
 import { useTheme } from '@/providers/ThemeProvider';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +40,7 @@ const Settings = () => {
   const { user } = useUser();
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
+  const { getToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -56,14 +58,21 @@ const Settings = () => {
 
   // Load user profile data
   useEffect(() => {
-    const loadProfile = async () => {
-  if (!user?.email) return;
+  const loadProfile = async () => {
+    if (!user?.email) return;
 
-  setIsLoading(true);
-  try {
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/profile?email=${encodeURIComponent(user.email)}`);
+setIsLoading(true);
+try {
+  const token = await getToken();
+  const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/profile?email=${encodeURIComponent(user.email)}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
 
-    if (!response.ok) {
+
+      if (!response.ok) {
       // Instead of throwing an error, show the message
       toast({
         title: "Notice",
@@ -134,14 +143,16 @@ const Settings = () => {
       return;
     }
 
-    setIsSaving(true);
-    try {
-      console.log(`${import.meta.env.VITE_BACKEND_URL}/api/user/profile`);
-      
+setIsSaving(true);
+try {
+  const token = await getToken();
+  console.log(`${import.meta.env.VITE_BACKEND_URL}/api/user/profile`);
+
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           ...profileData,
