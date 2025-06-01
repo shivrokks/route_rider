@@ -49,7 +49,7 @@ const UserStops = () => {
   const fetchStops = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`http://localhost:5000/api/user/stops/${user?.phoneNumber}`);
+      const response = await fetch(`${import.meta.env.BACKEND_URL}/api/user/stops/${user?.phoneNumber}`);
       const data = await response.json();
 
       if (data.success) {
@@ -86,7 +86,7 @@ const UserStops = () => {
     setIsAddingStop(true);
     
     try {
-      const response = await fetch('http://localhost:5000/api/user/stops', {
+      const response = await fetch(`${import.meta.env.BACKEND_URL}/api/user/stops`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +125,7 @@ const UserStops = () => {
 
   const handleRemoveStop = async (stopName: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/user/stops/${user?.phoneNumber}`, {
+      const response = await fetch(`${import.meta.env.BACKEND_URL}/api/user/stops/${user?.phoneNumber}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -166,7 +166,7 @@ const UserStops = () => {
       }
       
       const response = await fetch(
-        `http://localhost:5000/api/user/stops/${user?.phoneNumber}/${stop.name}/preferences`,
+        `${import.meta.env.BACKEND_URL}/api/user/stops/${user?.phoneNumber}/${stop.name}/preferences`,
         {
           method: 'PUT',
           headers: {

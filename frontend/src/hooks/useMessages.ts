@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 
 interface Message {
   _id: string;
@@ -16,6 +17,7 @@ const LAST_SEEN_KEY = 'last-seen-messages';
 export const useMessages = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { getToken } = useAuth();
   
   // Get seen message IDs from localStorage
   const getSeenMessageIds = (): Set<string> => {
@@ -26,11 +28,16 @@ export const useMessages = () => {
   // Save seen message IDs to localStorage
   const saveSeenMessageIds = (ids: Set<string>) => {
     localStorage.setItem(LAST_SEEN_KEY, JSON.stringify(Array.from(ids)));
-  };
-
-  const fetchMessages = async () => {
+  };  const fetchMessages = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/messages');
+      const token = await getToken();
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/messages`, {
+        cache: 'no-store',  // Disable caching to always get fresh messages
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
       if (data.success) {
         setMessages(data.data);
@@ -65,19 +72,23 @@ export const useMessages = () => {
     saveSeenMessageIds(seenMessageIds);
     setUnreadCount(Math.max(0, unreadCount - 1));
   };
-
-  // Fetch messages initially and every 10 seconds
+  // Fetch messages initially and every 3 seconds
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 10000);
+    const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
   }, []);
+  // Function to add a message locally before server response
+  const addMessageLocally = (message: Message) => {
+    setMessages(prev => [...prev, message]);
+  };
 
   return {
     messages,
     unreadCount,
     markAllRead,
     markMessageRead,
-    fetchMessages
+    fetchMessages,
+    addMessageLocally
   };
 };

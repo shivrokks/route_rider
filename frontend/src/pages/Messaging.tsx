@@ -13,23 +13,31 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUser as useClerkUser } from '@clerk/clerk-react';
+import { useUser as useClerkUser, useAuth } from '@clerk/clerk-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { useMessages } from '@/hooks/useMessages';
 
-const Messaging = () => {
-  const [newMessage, setNewMessage] = useState('');
+const Messaging = () => {  const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { messages, markMessageRead, markAllRead } = useMessages();
+  const { messages, markMessageRead, markAllRead, fetchMessages, addMessageLocally } = useMessages();
   const { isSignedIn, user: clerkUser } = useClerkUser();
-  const { toast } = useToast();
-  const observerRef = useRef<IntersectionObserver | null>(null);
+  const { getToken } = useAuth();
+  const { toast } = useToast();  const observerRef = useRef<IntersectionObserver | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   // Mark all messages as read when component mounts
   useEffect(() => {
     markAllRead();
   }, [markAllRead]);
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   // Setup intersection observer to detect when messages are visible
   useEffect(() => {
@@ -59,16 +67,30 @@ const Messaging = () => {
       }
     };
   }, [messages, markMessageRead]);
-
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
 
     setIsLoading(true);
+    const optimisticMessage = {
+      _id: `temp-${Date.now()}`,
+      content: newMessage.trim(),
+      sender: {
+        name: clerkUser?.fullName || clerkUser?.username || 'Anonymous',
+        email: clerkUser?.primaryEmailAddress?.emailAddress || '',
+      },
+      timestamp: new Date().toISOString(),
+    };
+    
+    // Add message optimistically
+    addMessageLocally(optimisticMessage);
+    
     try {
-      const response = await fetch('http://localhost:5000/api/messages', {
+      const token = await getToken();
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           content: newMessage,
@@ -77,13 +99,21 @@ const Messaging = () => {
             email: clerkUser?.primaryEmailAddress?.emailAddress || '',
           },
         }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send message');
+      });      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Failed to send message');
+      }      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to send message');
       }
 
       setNewMessage('');
+      // Fetch messages immediately after sending
+      await fetchMessages();
+      toast({
+        title: "Success",
+        description: "Message sent successfully",
+      });
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -95,10 +125,9 @@ const Messaging = () => {
       setIsLoading(false);
     }
   };
-
   return (
-    <div className="container mx-auto p-4">
-      <Card className="w-full max-w-2xl mx-auto">
+    <div className="container mx-auto p-4 h-[calc(100vh-8rem)]">
+      <Card className="w-full max-w-2xl mx-auto h-full flex flex-col">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
@@ -108,8 +137,8 @@ const Messaging = () => {
             Chat with drivers and passengers
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[400px] w-full pr-4">
+        <CardContent className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full w-full pr-4">
             <div className="flex flex-col gap-4">
               {messages.map((message) => (
                 <div
@@ -128,10 +157,10 @@ const Messaging = () => {
                   </div>
                   <p className="text-sm">{message.content}</p>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {format(new Date(message.timestamp), 'MMM d, yyyy h:mm a')}
-                  </span>
+                    {format(new Date(message.timestamp), 'MMM d, yyyy h:mm a')}                  </span>
                 </div>
               ))}
+              <div ref={messagesEndRef} style={{ height: 0 }} />
             </div>
           </ScrollArea>
         </CardContent>
