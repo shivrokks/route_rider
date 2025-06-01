@@ -30,7 +30,7 @@ export const useUser = () => {
 
       try {
         const response = await fetch(
-          `http://localhost:5000/api/user/profile?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`,
+          `${import.meta.env.BACKEND_URL}/api/user/profile?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`,
           { headers: { 'Content-Type': 'application/json' } }
         );
 

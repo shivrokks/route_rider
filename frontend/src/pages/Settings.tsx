@@ -61,7 +61,7 @@ const Settings = () => {
 
   setIsLoading(true);
   try {
-    const response = await fetch(`http://localhost:5000/api/user/profile?email=${encodeURIComponent(user.email)}`);
+    const response = await fetch(`${import.meta.env.BACKEND_URL}/api/user/profile?email=${encodeURIComponent(user.email)}`);
 
     if (!response.ok) {
       // Instead of throwing an error, show the message
@@ -136,7 +136,7 @@ const Settings = () => {
 
     setIsSaving(true);
     try {
-      const response = await fetch('http://localhost:5000/api/user/profile', {
+      const response = await fetch(`${import.meta.env.BACKEND_URL}/api/user/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -30,7 +30,7 @@ export const useMessages = () => {
 
   const fetchMessages = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/messages');
+      const response = await fetch(`${import.meta.env.BACKEND_URL}/api/messages`);
       const data = await response.json();
       if (data.success) {
         setMessages(data.data);

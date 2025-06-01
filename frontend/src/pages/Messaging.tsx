@@ -65,7 +65,7 @@ const Messaging = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/messages', {
+      const response = await fetch(`${import.meta.env.BACKEND_URL}/api/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
