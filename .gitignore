@@ -8,15 +8,18 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Environment files (except .env.example)
-.env*.local
-.env
-!.env.example
+# Environment files
+**/.env
+**/.env.*
+!**/.env.example
 
-# React & Vite
-.vite/
-**/.vite/
-dist/
+# Vite
+**/.vite
+**/.vite/**
+**/node_modules/.vite/**
+frontend/.vite/
+frontend/.vite/**/*
+**/dist/
 
 ### Build artifacts ###
 # Frontend (React)
