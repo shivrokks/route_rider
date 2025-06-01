@@ -44,7 +44,7 @@ jobs:
       - name: Restart App with PM2
         run: |
           ssh -i ec2_key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
-            cd ${{ secrets.EC2_APP_DIR }}
+            cd ${{ secrets.EC2_APP_DIR }}/dist
             npm install --omit=dev
             pm2 restart server || pm2 start server.js --name server
             pm2 save
