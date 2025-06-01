@@ -1,14 +1,14 @@
-
-
-
 name: MERN CI/CD Deploy to EC2
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   deploy-backend:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true)
     name: Deploy Backend to EC2
     runs-on: ubuntu-latest
 
@@ -51,6 +51,7 @@ jobs:
           EOF
 
   deploy-frontend:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true)
     name: Deploy Frontend to Vercel
     runs-on: ubuntu-latest
 
