@@ -65,7 +65,8 @@ const Messaging = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.BACKEND_URL}/api/messages`, {
+      console.log(`${import.meta.env.VITE_BACKEND_URL}/api/messages`);
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
