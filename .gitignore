@@ -13,6 +13,10 @@ lerna-debug.log*
 .env
 !.env.example
 
+.vite/
+**/.vite/
+dist/
+
 ### Build artifacts ###
 # Frontend (React)
 frontend/dist/
