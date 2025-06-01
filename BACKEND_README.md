@@ -84,4 +84,4 @@ This backend uses Clerk for authentication. All protected routes require a valid
 Authorization: Bearer <token>
 ```
 
-The token is verified using the Clerk SDK.
+The token is verified using the Clerk SDK
