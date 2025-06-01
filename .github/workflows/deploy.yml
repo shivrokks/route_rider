@@ -1,21 +1,17 @@
-name: MERN CI/CD Deploy
+
+
+
+name: MERN CI/CD Deploy to EC2
 
 on:
   push:
-    branches: [main] # Or "master" if that’s your default branch
+    branches: [main]
 
 jobs:
   deploy-backend:
-    name: Deploy Backend to Render
+    name: Deploy Backend to EC2
     runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Render Deploy
-        run: |
-          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
 
-  deploy-frontend:
-    name: Deploy Frontend to Vercel
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -26,10 +22,52 @@ jobs:
           node-version: 18
 
       - name: Install Dependencies
+        working-directory: ./backend
+        run: npm install
+
+      - name: Build TypeScript (if applicable)
+        working-directory: ./backend
+        run: |
+          if [ -f "tsconfig.json" ]; then
+            npm run build
+          fi
+
+      - name: Decode SSH Key
+        run: |
+          echo "${{ secrets.EC2_KEY }}" | base64 -d > ec2_key.pem
+          chmod 600 ec2_key.pem
+
+      - name: Copy Files to EC2
+        run: |
+          rsync -avz -e "ssh -i ec2_key.pem -o StrictHostKeyChecking=no" ./backend/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ secrets.EC2_APP_DIR }}
+
+      - name: Restart App with PM2
+        run: |
+          ssh -i ec2_key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
+            cd ${{ secrets.EC2_APP_DIR }}
+            npm install --omit=dev
+            pm2 restart server || pm2 start server.js --name server
+            pm2 save
+          EOF
+
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Frontend Dependencies
         working-directory: ./frontend
         run: npm install
 
-      - name: Build Project
+      - name: Build Frontend
         working-directory: ./frontend
         run: npm run build
 
