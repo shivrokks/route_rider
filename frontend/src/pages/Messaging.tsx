@@ -86,6 +86,8 @@ const Messaging = () => {  const [newMessage, setNewMessage] = useState('');
     
     try {
       const token = await getToken();
+
+      console.log(`${import.meta.env.VITE_BACKEND_URL}/api/messages`);
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/messages`, {
         method: 'POST',
         headers: {

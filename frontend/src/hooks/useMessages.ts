@@ -30,14 +30,17 @@ export const useMessages = () => {
     localStorage.setItem(LAST_SEEN_KEY, JSON.stringify(Array.from(ids)));
   };  const fetchMessages = async () => {
     try {
-      const token = await getToken();
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/messages`, {
-        cache: 'no-store',  // Disable caching to always get fresh messages
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
+console.log(`${import.meta.env.VITE_BACKEND_URL}/api/messages`);
+
+const token = await getToken();
+const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/messages`, {
+  cache: 'no-store',  // Disable caching to always get fresh messages
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  }
+});
+
       const data = await response.json();
       if (data.success) {
         setMessages(data.data);

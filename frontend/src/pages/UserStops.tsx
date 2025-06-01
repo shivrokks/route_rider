@@ -53,12 +53,14 @@ const UserStops = () => {
     try {
       setIsLoading(true);
       const token = await getToken();
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/stops/${user.phoneNumber}`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/stops/${user?.phoneNumber}`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
+      const data = await response.json();
+
 
       if (!response.ok) {
         throw new Error('Failed to fetch stops');
@@ -100,7 +102,9 @@ const UserStops = () => {
     
     setIsAddingStop(true);
     try {
+
       const token = await getToken();
+
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/stops`, {
         method: 'POST',
         headers: {
@@ -140,6 +144,7 @@ const UserStops = () => {
 
   const handleRemoveStop = async (stopName: string) => {
     try {
+
       const token = await getToken();
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/stops/${user?.phoneNumber}`, {
         method: 'DELETE',

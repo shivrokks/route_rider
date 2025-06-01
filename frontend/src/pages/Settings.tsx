@@ -61,15 +61,16 @@ const Settings = () => {
   const loadProfile = async () => {
     if (!user?.email) return;
 
-    setIsLoading(true);
-    try {
-      const token = await getToken();
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/profile?email=${encodeURIComponent(user.email)}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
+setIsLoading(true);
+try {
+  const token = await getToken();
+  const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/profile?email=${encodeURIComponent(user.email)}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
 
       if (!response.ok) {
       // Instead of throwing an error, show the message
@@ -142,8 +143,11 @@ const Settings = () => {
       return;
     }
 
-    setIsSaving(true);    try {
-      const token = await getToken();
+setIsSaving(true);
+try {
+  const token = await getToken();
+  console.log(`${import.meta.env.VITE_BACKEND_URL}/api/user/profile`);
+
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/profile`, {
         method: 'PUT',
         headers: {

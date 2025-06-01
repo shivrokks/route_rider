@@ -17,8 +17,9 @@ const DriverDashboard: React.FC = () => {  const { signOut } = useClerk();
 
   const sendMessage = async (content: string) => {
     setIsLoading(true);
-    try {      const token = await getToken();
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/messages`, {
+  try {
+    const token = await getToken();
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
