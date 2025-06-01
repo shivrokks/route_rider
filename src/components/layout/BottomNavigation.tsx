@@ -1,10 +1,12 @@
-
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Bus, MessageSquare, Navigation, Settings, MapPin } from 'lucide-react';
+import { useMessages } from '@/hooks/useMessages';
+import { Badge } from '@/components/ui/badge';
 
 const BottomNavigation = () => {
   const location = useLocation();
+  const { unreadCount } = useMessages();
   const currentPath = location.pathname;
 
   const navItems = [
@@ -47,11 +49,18 @@ const BottomNavigation = () => {
                     : "text-gray-500 hover:text-bus-primary dark:text-gray-400 dark:hover:text-white"
                 )}
               >
-                <item.icon className={cn(
-                  "h-6 w-6 mb-1",
-                  isActive && "animate-pulse-location"
-                )} />
-                <span className="text-xs font-medium">{item.name}</span>
+                <div className="relative">
+                  <item.icon className="h-6 w-6 mb-1" />
+                  {item.name === 'Messaging' && unreadCount > 0 && (
+                    <Badge 
+                      variant="secondary"
+                      className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center bg-red-500 text-white text-xs p-0 rounded-full"
+                    >
+                      {unreadCount}
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-xs">{item.name}</span>
               </Link>
             );
           })}

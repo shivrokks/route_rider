@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '@/hooks/useUser';
 import { User, MapPin, List } from 'lucide-react';
 import BusMap from '@/components/map/BusMap';
 import BusList from '@/components/bus/BusList';
@@ -21,7 +21,7 @@ interface Profile {
 
 const MapView = () => {
   const [view, setView] = useState<'map' | 'list'>('map');
-  const { isSignedIn, user, isLoaded } = useUser();
+  const { isSignedIn, user, isLoaded, isCheckingDriver } = useUser();
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<Profile>({
     fullName: 'Guest User',
@@ -33,91 +33,60 @@ const MapView = () => {
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!isLoaded) return;
+    let mounted = true;
+
+    const updateProfile = async () => {
+      if (!isLoaded || isCheckingDriver) return;
       
       if (!isSignedIn || !user) {
-        setProfile({
-          fullName: 'Guest User',
-          email: '',
-          phoneNumber: ''
-        });
-        setIsLoading(false);
+        if (mounted) {
+          setProfile({
+            fullName: 'Guest User',
+            email: '',
+            phoneNumber: ''
+          });
+          setIsLoading(false);
+        }
         return;
       }
 
       try {
-        // Get data from Clerk
-        const clerkEmail = user.emailAddresses[0]?.emailAddress;
-        const clerkName = user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim();
-        const clerkPhone = user.phoneNumbers?.[0]?.phoneNumber || '';
-        
-        console.log('Clerk data:', { clerkName, clerkEmail, clerkPhone }); // Debug log
-        
-        // Initialize profile with Clerk data
-        let currentProfile = {
-          fullName: clerkName || 'Guest User',
-          email: clerkEmail || 'No email',
-          phoneNumber: clerkPhone || ''
-        };
-
-        // Only fetch from backend if we have an email
-        if (clerkEmail) {
-          try {
-            const response = await fetch(
-              `http://localhost:5000/api/user/profile?email=${encodeURIComponent(clerkEmail)}`,
-              {
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-
-            if (response.ok) {
-              const data = await response.json();
-              console.log('Backend response:', data); // Debug log
-              if (data.success && data.data) {
-                currentProfile = {
-                  ...currentProfile,
-                  ...data.data,
-                  fullName: data.data.fullName || currentProfile.fullName, // Fallback to Clerk name
-                  email: clerkEmail // Always keep Clerk email
-                };
-              }
-            }
-          } catch (backendError) {
-            console.error('Backend profile fetch failed:', backendError);
-            toast({
-              title: "Warning",
-              description: "Using profile information from authentication only.",
-              variant: "default",
-            });
-          }
+        if (mounted) {
+          setProfile({
+            fullName: user.name,
+            email: user.email,
+            phoneNumber: user.phoneNumber || ''
+          });
         }
-
-        console.log('Setting profile to:', currentProfile); // Debug log
-        setProfile(currentProfile);
       } catch (error) {
-        console.error('Error fetching profile:', error);
-        toast({
-          title: "Error",
-          description: "An error occurred while fetching profile information.",
-          variant: "destructive",
-        });
+        console.error('Error updating profile:', error);
+        if (mounted) {
+          toast({
+            title: "Error",
+            description: "An error occurred while updating profile information.",
+            variant: "destructive",
+          });
+        }
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    fetchUserProfile();
-  }, [isSignedIn, user, isLoaded, toast]);
+    updateProfile();
 
-  // Show loading state while Clerk is initializing
-  if (!isLoaded) {
+    return () => {
+      mounted = false;
+    };
+  }, [isSignedIn, user, isLoaded, isCheckingDriver, toast]);
+
+  // Show loading state while initializing
+  if (!isLoaded || isCheckingDriver) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Spinner className="w-8 h-8" />
-        <span className="ml-2">Loading authentication...</span>
+        <span className="ml-2">Loading...</span>
       </div>
     );
   }

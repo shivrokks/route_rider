@@ -51,13 +51,13 @@ interface BusMapProps {
   'data-lov-id'?: string;
 }
 
-const BusMap = (props: BusMapProps) => {
-  // Extract and remove data-lov-id from props to prevent it from being passed to child components
-  const { fullWidth = false, 'data-lov-id': _, ...restProps } = props;
+// Remove the spread operator from props to explicitly control what gets passed down
+const BusMap = ({ fullWidth = false }: BusMapProps) => {
   const [buses, setBuses] = useState<Bus[]>([]);
   const [center, setCenter] = useState({ lat: 12.9716, lng: 77.5946 });
   const [routeCoordinates, setRouteCoordinates] = useState<{ [key: string]: LatLngTuple[] }>({});
   const [routeDistances, setRouteDistances] = useState<{ [key: string]: number[] }>({});
+  const [lastRouteUpdate, setLastRouteUpdate] = useState<{ [key: string]: number }>({});
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   const convertToLatLng = (pos: string | [number, number]): LatLngTuple => {
@@ -67,8 +67,17 @@ const BusMap = (props: BusMapProps) => {
     return pos;
   };
 
+  // Cache validation interval (10 seconds)
+  const ROUTE_UPDATE_INTERVAL = 10000;
+
   // Fetch route coordinates between stops
   const fetchRouteCoordinates = async (bus: Bus) => {
+    const now = Date.now();
+    // Only update routes every ROUTE_UPDATE_INTERVAL unless it's the first time
+    if (lastRouteUpdate[bus.id] && now - lastRouteUpdate[bus.id] < ROUTE_UPDATE_INTERVAL) {
+      return;
+    }
+
     try {
       const coordinates: LatLngTuple[] = [];
       const distances: number[] = [];
@@ -93,6 +102,11 @@ const BusMap = (props: BusMapProps) => {
       setRouteDistances(prev => ({
         ...prev,
         [bus.id]: distances
+      }));
+
+      setLastRouteUpdate(prev => ({
+        ...prev,
+        [bus.id]: now
       }));
     } catch (error) {
       console.error('Error fetching route coordinates:', error);
@@ -126,7 +140,9 @@ const BusMap = (props: BusMapProps) => {
       setBuses(busList);
       
       // Fetch route coordinates for each bus
-      busList.forEach(fetchRouteCoordinates);
+      for (const bus of busList) {
+        await fetchRouteCoordinates(bus);
+      }
       
       if (busList.length > 0) {
         const [lat, lng] = convertToLatLng(busList[0].position);
@@ -144,7 +160,6 @@ const BusMap = (props: BusMapProps) => {
       ref={mapContainerRef}
       className={`relative h-[500px] w-full ${fullWidth ? 'border-x-0' : 'rounded-lg'} overflow-hidden border`}
       style={{ position: 'relative', zIndex: 1 }}
-      {...restProps}
     >
       <MapContainer
         center={[center.lat, center.lng]}
@@ -164,60 +179,18 @@ const BusMap = (props: BusMapProps) => {
               bus.routeStops.map(stop => convertToLatLng(stop.position));
             const distances = routeDistances[bus.id] || [];
             
+            // Extract bus-related UI into its own component to isolate Fragment usage
             return (
-              <Fragment key={bus.id}>
-                <Polyline
-                  positions={routePath}
-                  color={bus.number === "42" ? '#2563eb' : '#16a34a'} // blue for 42, green for 15
-                  weight={3}
-                  opacity={0.8}
-                />
-                {bus.routeStops.map((stop, stopIdx) => (
-                  <Marker
-                    key={`${bus.id}-stop-${stopIdx}`}
-                    position={convertToLatLng(stop.position)}
-                    icon={stopIcon}
-                  >
-                    <Popup>
-                      <div className="text-sm">
-                        <p className="font-semibold">🚏 {stop.name}</p>
-                        {stopIdx === bus.currentStopIndex && (
-                          <p className="text-blue-600">Current Stop</p>
-                        )}
-                        {stopIdx === bus.currentStopIndex + 1 && (
-                          <p className="text-green-600">Next Stop</p>
-                        )}
-                        {stopIdx > 0 && (
-                          <p className="text-gray-600">
-                            Distance from previous: {distances[stopIdx - 1]?.toFixed(1) || '...'} km
-                          </p>
-                        )}
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-                <Marker
-                  position={busPosition}
-                  icon={icon}
-                >
-                  <Popup>
-                    <div className="text-sm">
-                      <p className="font-semibold">🚌 Bus {bus.number}</p>
-                      <p className="text-muted-foreground">{bus.route}</p>
-                      <hr className="my-1" />
-                      <p>🚘 Driver: {bus.driver}</p>
-                      <p>🎯 Next: {bus.nextStop}</p>
-                      <p>⏱️ ETA: {bus.eta}</p>
-                      <p className={bus.status === "On Time" ? "text-green-600" : "text-red-600"}>
-                        {bus.status}
-                      </p>
-                      {distances.length > 0 && (
-                        <p>📏 Total route: {distances.reduce((a, b) => a + b, 0).toFixed(1)} km</p>
-                      )}
-                    </div>
-                  </Popup>
-                </Marker>
-              </Fragment>
+              <BusMapMarker 
+                key={bus.id}
+                bus={bus}
+                position={busPosition}
+                routePath={routePath}
+                distances={distances}
+                routeStops={bus.routeStops}
+                convertToLatLng={convertToLatLng}
+                currentStopIndex={bus.currentStopIndex}
+              />
             );
           })}
           <MapResizer />
@@ -226,5 +199,79 @@ const BusMap = (props: BusMapProps) => {
     </div>
   );
 };
+
+interface BusMapMarkerProps {
+  bus: Bus;
+  position: LatLngTuple;
+  routePath: LatLngTuple[];
+  distances: number[];
+  routeStops: BusStop[];
+  convertToLatLng: (pos: string | [number, number]) => LatLngTuple;
+  currentStopIndex: number;
+}
+
+const BusMapMarker = ({
+  bus,
+  position,
+  routePath,
+  distances,
+  routeStops,
+  convertToLatLng,
+  currentStopIndex
+}: BusMapMarkerProps) => (
+  <>
+    <Polyline
+      positions={routePath}
+      color={bus.number === "42" ? '#2563eb' : '#16a34a'}
+      weight={3}
+      opacity={0.8}
+    />
+    {routeStops.map((stop, stopIdx) => (
+      <Marker
+        key={`${bus.id}-stop-${stopIdx}`}
+        position={convertToLatLng(stop.position)}
+        icon={stopIcon}
+      >
+        <Popup>
+          <div className="text-sm">
+            <p className="font-semibold">🚏 {stop.name}</p>
+            {stopIdx === currentStopIndex && (
+              <p className="text-blue-600">Current Stop</p>
+            )}
+            {stopIdx === currentStopIndex + 1 && (
+              <p className="text-green-600">Next Stop</p>
+            )}
+            {stopIdx > 0 && (
+              <p className="text-gray-600">
+                Distance from previous: {distances[stopIdx - 1]?.toFixed(1) || '...'} km
+              </p>
+            )}
+          </div>
+        </Popup>
+      </Marker>
+    ))}
+    <Marker
+      position={position}
+      icon={icon}
+    >
+      <Popup>
+        <div className="text-sm">
+          <p className="font-semibold">🚌 Bus {bus.number}</p>
+          <p className="text-muted-foreground">{bus.route}</p>
+          <hr className="my-1" />
+          <p>🚘 Driver: {bus.driver}</p>
+          <p>🎯 Next: {bus.nextStop}</p>
+          <p>⏱️ ETA: {bus.eta}</p>
+          <p className={bus.status === "On Time" ? "text-green-600" : "text-red-600"}>
+            {bus.status}
+          </p>
+          {distances.length > 0 && (
+            <p>📏 Total route: {distances.reduce((a, b) => a + b, 0).toFixed(1)} km</p>
+          )}
+        </div>
+      </Popup>
+    </Marker>
+  </>
+);
 
 export default BusMap;

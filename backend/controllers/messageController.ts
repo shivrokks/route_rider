@@ -23,16 +23,15 @@ export const sendMessage = async (req: Request, res: Response) => {
       sender = sender || {};
       sender.name = sender.name || 'Anonymous User';
       sender.email = sender.email || 'no-email@example.com';
-    }
-
-    // Create new message with explicit sender information
+    }    // Create new message with explicit sender information
     const message = new Message({
       content,
       sender: {
         name: String(sender.name || 'Anonymous User').substring(0, 100), // Ensure string and limit length
         email: String(sender.email || 'no-email@example.com').toLowerCase().substring(0, 254)
       },
-      timestamp: new Date()
+      timestamp: new Date(),
+      isDriver: req.body.isDriver || false
     });
 
     console.log('Saving message:', message);

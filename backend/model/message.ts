@@ -1,12 +1,12 @@
 import mongoose from 'mongoose';
 
-const messageSchema = new mongoose.Schema({
-  sender: {
+const messageSchema = new mongoose.Schema({  sender: {
     name: { type: String, required: true },
     email: { type: String, required: true }
   },
   content: { type: String, required: true },
-  timestamp: { type: Date, default: Date.now }
+  timestamp: { type: Date, default: Date.now },
+  isDriver: { type: Boolean, default: false }
 }, {
   timestamps: true
 });

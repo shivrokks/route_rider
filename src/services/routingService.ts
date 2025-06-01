@@ -10,16 +10,63 @@ interface RouteResponse {
 }
 
 // Simple in-memory cache for routes
-const routeCache = new Map<string, LatLngTuple[]>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL
+const routeCache = new Map<string, { data: LatLngTuple[]; timestamp: number }>();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes cache TTL
 
-// Track last request time to implement rate limiting
-let lastRequestTime = 0;
+// Queue for managing API requests
+const requestQueue: { resolve: (value: LatLngTuple[]) => void; start: LatLngTuple; end: LatLngTuple }[] = [];
+let isProcessingQueue = false;
 const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
 
 // Generate a cache key from coordinates
 function getCacheKey(start: LatLngTuple, end: LatLngTuple): string {
   return `${start[0]},${start[1]};${end[0]},${end[1]}`;
+}
+
+async function processQueue() {
+  if (isProcessingQueue || requestQueue.length === 0) return;
+  
+  isProcessingQueue = true;
+  const now = Date.now();
+  
+  while (requestQueue.length > 0) {
+    const request = requestQueue.shift();
+    if (!request) break;
+    
+    const { resolve, start, end } = request;
+    const cacheKey = getCacheKey(start, end);
+    
+    try {
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`,
+        {
+          headers: {
+            'User-Agent': 'BusTrackerApp/1.0'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch route');
+      }
+
+      const data: RouteResponse = await response.json();
+      const coordinates = data.routes[0].geometry.coordinates.map(
+        ([lng, lat]): LatLngTuple => [lat, lng]
+      );
+
+      routeCache.set(cacheKey, { data: coordinates, timestamp: now });
+      resolve(coordinates);
+    } catch (error) {
+      console.error('Error fetching route:', error);
+      resolve([start, end]); // Fallback to straight line
+    }
+
+    // Wait before processing next request
+    await new Promise(resolve => setTimeout(resolve, MIN_REQUEST_INTERVAL));
+  }
+  
+  isProcessingQueue = false;
 }
 
 // Using OSRM (OpenStreetMap Routing Machine) for road routing
@@ -35,57 +82,22 @@ export async function getRouteCoordinates(
   const cached = routeCache.get(cacheKey);
   
   // Return cached result if available and not expired
-  if (cached) {
-    return cached;
+  if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+    return cached.data;
   }
 
-  // Rate limiting: ensure minimum time between requests
-  const now = Date.now();
-  const timeSinceLastRequest = now - lastRequestTime;
-  
-  if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
-    // If we're making requests too quickly, return a straight line
-    console.warn('Rate limiting active - using straight line path');
-    return [start, end];
-  }
-
-  lastRequestTime = now;
-
-  try {
-    const response = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`,
-      {
-        headers: {
-          'User-Agent': 'BusTrackerApp/1.0 (https://your-app-url.com; contact@example.com)'
-        }
-      }
-    );
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        console.warn('Rate limited by OSRM - using straight line path');
-      } else {
-        console.error('Route fetch failed:', response.statusText);
-      }
-      return [start, end]; // Fallback to straight line
+  // Remove expired cache entries
+  routeCache.forEach((value, key) => {
+    if (Date.now() - value.timestamp > CACHE_TTL) {
+      routeCache.delete(key);
     }
+  });
 
-    const data: RouteResponse = await response.json();
-    const result = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng] as LatLngTuple);
-    
-    // Cache the result
-    routeCache.set(cacheKey, result);
-    
-    // Set a timeout to clear the cache entry
-    setTimeout(() => {
-      routeCache.delete(cacheKey);
-    }, CACHE_TTL);
-    
-    return result;
-  } catch (error) {
-    console.error('Route calculation failed:', error);
-    return [start, end]; // Fallback to straight line
-  }
+  // Queue the request
+  return new Promise((resolve) => {
+    requestQueue.push({ resolve, start, end });
+    processQueue(); // Try to process queue
+  });
 }
 
 export function calculateDistance(coordinates: LatLngTuple[]): number {

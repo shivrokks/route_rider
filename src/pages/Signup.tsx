@@ -1,4 +1,3 @@
-
 import { SignUp } from '@clerk/clerk-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
@@ -17,6 +16,8 @@ const Signup = () => {
           <SignUp
             routing="path"
             path="/signup"
+            afterSignUpUrl="/"
+            redirectUrl="/login"
             signInUrl="/login"
             appearance={{
               elements: {

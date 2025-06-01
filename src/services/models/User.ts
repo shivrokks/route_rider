@@ -4,6 +4,7 @@ export interface User {
   email: string;
   name: string;
   phoneNumber: string | null;
+  isDriver?: boolean;
   notificationPreferences: {
     sms: boolean;
     push: boolean;

@@ -1,10 +1,10 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthenticatedRoute, UnauthenticatedRoute } from "./components/auth/AuthWrapper";
+import { DriverRoute } from "./components/auth/DriverRoute";
 import Layout from "./components/layout/Layout";
 import MapView from "./pages/MapView";
 import BusRegistration from "./pages/BusRegistration";
@@ -15,6 +15,7 @@ import { ThemeProvider } from "./providers/ThemeProvider";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import UserStops from "./pages/UserStops";
+import DriverDashboard from "./pages/DriverDashboard";
 
 const queryClient = new QueryClient();
 
@@ -41,7 +42,17 @@ const App = () => (
                 <Signup />
               </UnauthenticatedRoute>
             } />
+            <Route path="/signup/verify-email-address" element={
+              <UnauthenticatedRoute>
+                <Signup />
+              </UnauthenticatedRoute>
+            } />
             
+            <Route path="/driver" element={
+              <DriverRoute>
+                <DriverDashboard />
+              </DriverRoute>
+            } />
             <Route path="/" element={
               <AuthenticatedRoute>
                 <Layout />
